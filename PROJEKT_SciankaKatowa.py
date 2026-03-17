@@ -7,143 +7,12 @@
 # =============================================================================
 
 import os
-import sys
-import tkinter as tk
-from tkinter import messagebox
 import numpy as np
 import matplotlib
-matplotlib.use("TkAgg")
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 KATALOG = os.path.dirname(os.path.abspath(__file__))
-
-# Kolory w stylu monitor_boost (ciemny motyw)
-BG = "#1a1a1a"
-FG = "#e0e0e0"
-BG_ENTRY = "#2d2d2d"
-FG_ENTRY = "#fff"
-BG_BTN_OK = "#0d4d0d"
-FG_BTN_OK = "#b8f0b8"
-BG_BTN_CANCEL = "#4a2a2a"
-FG_BTN_CANCEL = "#f0c0c0"
-BG_SECTION = "#252525"
-
-
-def wczytaj_dane_z_okienka(parent=None):
-    """Okno z polami: dane wspólne, Rankine, Poncelet. Zwraca dict lub None przy Anuluj.
-    Jeśli parent podany – używa Toplevel(parent), żeby po „Zmień parametry” znów pokazać dane."""
-    wartosci = [None]
-
-    if parent is not None:
-        root = tk.Toplevel(parent)
-        root.transient(parent)
-    else:
-        root = tk.Tk()
-    root.title("Ścianka oporowa – dane wejściowe")
-    root.geometry("1024x900")
-    root.resizable(True, True)
-    root.configure(bg=BG)
-
-    # Czcionka z obsługą polskich i greckich (φ, ε, β, δ, γ)
-    import tkinter.font as tkfont
-    families = tkfont.families()
-    for name in ("DejaVu Sans", "Liberation Sans", "Segoe UI", "Arial", "TkDefaultFont"):
-        if name in families:
-            FONT_UI = (name, 10)
-            FONT_UI_BOLD = (name, 10, "bold")
-            break
-    else:
-        FONT_UI = ("TkDefaultFont", 10)
-        FONT_UI_BOLD = ("TkDefaultFont", 10, "bold")
-
-    main = tk.Frame(root, bg=BG, padx=16, pady=14)
-    main.pack(fill=tk.BOTH, expand=True)
-
-    row = [0]
-
-    def section(title):
-        lbl = tk.Label(main, text=title, font=FONT_UI_BOLD, fg=FG, bg=BG)
-        lbl.grid(row=row[0], column=0, columnspan=2, sticky=tk.W, pady=(12, 6))
-        row[0] += 1
-
-    def mk_row(label_text, default, width=10):
-        lbl = tk.Label(main, text=label_text, font=FONT_UI, fg=FG, bg=BG, anchor=tk.W)
-        lbl.grid(row=row[0], column=0, sticky=tk.W, padx=(0, 10), pady=3)
-        var = tk.StringVar(value=default)
-        e = tk.Entry(main, textvariable=var, width=width, font=FONT_UI, bg=BG_ENTRY, fg=FG_ENTRY,
-                     insertbackground=FG_ENTRY, relief=tk.FLAT, highlightthickness=1, highlightbackground="#444")
-        e.grid(row=row[0], column=1, sticky=tk.W, pady=3)
-        row[0] += 1
-        return var
-
-    def mk_dropdown(label_text, options, default):
-        lbl = tk.Label(main, text=label_text, font=FONT_UI, fg=FG, bg=BG, anchor=tk.W)
-        lbl.grid(row=row[0], column=0, sticky=tk.W, padx=(0, 10), pady=3)
-        var = tk.StringVar(value=default)
-        om = tk.OptionMenu(main, var, *options)
-        om.config(font=FONT_UI, bg=BG_ENTRY, fg=FG_ENTRY, activebackground=BG_ENTRY, activeforeground=FG_ENTRY,
-                  relief=tk.FLAT, highlightthickness=0)
-        om["menu"].config(font=FONT_UI, bg=BG_ENTRY, fg=FG_ENTRY)
-        om.grid(row=row[0], column=1, sticky=tk.W, pady=3)
-        row[0] += 1
-        return var
-
-    section("Dane wspólne")
-    v_q = mk_row("q [kN/m²]", "10")
-    v_gamma = mk_row("γ [kN/m³]", "18")
-    v_phi = mk_row("φ [°]", "30")
-    v_epsilon = mk_row("ε [°]", "10")
-    v_gamma_Q = mk_dropdown("γ_Q (wsp. bezp. obciążenia)", ["1.0", "1.11", "1.2", "1.35", "1.5"], "1.0")
-    v_gamma_G = mk_dropdown("γ_G (wsp. bezp. gruntu)", ["1.0", "1.2", "1.35", "1.5"], "1.0")
-
-    section("Rankine")
-    v_z_max = mk_row("z_max [m]", "5")
-
-    section("Poncelet (Coulomb)")
-    v_beta = mk_row("β [°] (nachylenie ściany)", "10")
-    v_delta_frac = mk_dropdown("δ (tarcie grunt–ściana)", ["0°", "φ/3", "2φ/3", "φ"], "2φ/3")
-    v_l_max = mk_row("l_max [m]", "5")
-
-    DELTA_FRAC_MAP = {"0°": 0, "φ/3": 1, "2φ/3": 2, "φ": 3}
-
-    def ok_click():
-        try:
-            delta_sel = v_delta_frac.get()
-            if delta_sel not in DELTA_FRAC_MAP:
-                raise ValueError("Wybierz δ: 0°, φ/3, 2φ/3 lub φ")
-            wartosci[0] = {
-                "q": float(v_q.get()),
-                "gamma": float(v_gamma.get()),
-                "phi_st": float(v_phi.get()),
-                "epsilon_st": float(v_epsilon.get()),
-                "gamma_Q": float(v_gamma_Q.get()),
-                "gamma_G": float(v_gamma_G.get()),
-                "z_max": float(v_z_max.get()),
-                "beta_st": float(v_beta.get()),
-                "delta_frac": DELTA_FRAC_MAP[delta_sel],
-                "l_max": float(v_l_max.get()),
-            }
-        except ValueError as e:
-            messagebox.showerror("Błąd", "Wpisz poprawne liczby i wybierz wartości z list.\n" + str(e))
-            return
-        root.destroy()
-
-    btn_frame = tk.Frame(main, bg=BG)
-    btn_frame.grid(row=row[0], column=0, columnspan=2, pady=(20, 0))
-    tk.Button(btn_frame, text="  Oblicz i rysuj  ", font=FONT_UI_BOLD, relief=tk.FLAT,
-              bg=BG_BTN_OK, fg=FG_BTN_OK, activebackground="#0a3d0a", activeforeground=FG_BTN_OK,
-              command=ok_click, cursor="hand2").pack(side=tk.LEFT, padx=4)
-    tk.Button(btn_frame, text="Anuluj", font=FONT_UI, relief=tk.FLAT,
-              bg=BG_BTN_CANCEL, fg=FG_BTN_CANCEL, activebackground="#3a2020", activeforeground=FG_BTN_CANCEL,
-              command=root.destroy, cursor="hand2").pack(side=tk.LEFT, padx=4)
-
-    main.columnconfigure(1, weight=1)
-    if parent is not None:
-        parent.wait_window(root)
-    else:
-        root.mainloop()
-    return wartosci[0]
 
 
 def oblicz_i_rysuj(d, return_figures=False):
@@ -165,6 +34,8 @@ def oblicz_i_rysuj(d, return_figures=False):
 
     # Wspólny współczynnik do zmniejszenia długości strzałek / wektorów (wizualnie ~5× mniejsze)
     VIS_SCALE = 0.2
+    # Osobny współczynnik dla obwiedni naprężeń e_a (wizualnie ~5× mniejsze)
+    EA_VIS_SCALE = 0.2
 
     # ----- Rankine -----
     # Uogólniona postać z kątem ε; dla ε → 0 stosujemy klasyczny wzór Rankine'a
@@ -234,10 +105,12 @@ def oblicz_i_rysuj(d, return_figures=False):
     # ----- Wykres Rankine -----
     z_plot = np.linspace(0, z_max, 200)
     ea_plot = e_a(z_plot)
+    ea_plot_vis = EA_VIS_SCALE * ea_plot
     x_wall_r = np.zeros_like(z_plot)
     y_wall_r = z_plot
-    x_ea_r = x_wall_r + ea_plot * np.cos(epsilon)
-    y_ea_r = y_wall_r - ea_plot * np.sin(epsilon)
+    # Do rysowania używamy przeskalowanego naprężenia (nie wpływa to na E_a itd.)
+    x_ea_r = x_wall_r + ea_plot_vis * np.cos(epsilon)
+    y_ea_r = y_wall_r - ea_plot_vis * np.sin(epsilon)
     # Odporne na NaN/Inf wyznaczanie x_max
     finite_x_ea_r = x_ea_r[np.isfinite(x_ea_r)]
     if finite_x_ea_r.size == 0:
@@ -393,10 +266,12 @@ def oblicz_i_rysuj(d, return_figures=False):
     # ----- Wykres Poncelet -----
     l_plot = np.linspace(0, l_max, 200)
     ea_p_plot = e_a_poncelet(l_plot)
+    ea_p_plot_vis = EA_VIS_SCALE * ea_p_plot
     x_wall_p = l_plot * np.sin(beta)
     y_wall_p = l_plot * np.cos(beta)
-    x_ea_p = x_wall_p + ea_p_plot * np.cos(beta + delta)
-    y_ea_p = y_wall_p - ea_p_plot * np.sin(beta + delta)
+    # Do rysowania używamy przeskalowanej obwiedni naprężeń
+    x_ea_p = x_wall_p + ea_p_plot_vis * np.cos(beta + delta)
+    y_ea_p = y_wall_p - ea_p_plot_vis * np.sin(beta + delta)
     finite_x_ea_p = x_ea_p[np.isfinite(x_ea_p)]
     if finite_x_ea_p.size == 0:
         x_max_p = 1.0
@@ -757,110 +632,22 @@ def oblicz_i_rysuj(d, return_figures=False):
     return path1, path2, wyniki
 
 
-def pokaz_okno_wynikow_i_wykresow(wyniki, path1, path2, fig1, fig2, parent=None):
-    """Okno z wynikami, wykresami oraz opcją zmiany parametrów. Zwraca 'change' lub 'close'.
-    Gdy parent=None – zwykłe okno Tk() (zawsze widoczne na ekranie)."""
-    import tkinter.font as tkfont
-    wybor = [None]
-
-    if parent is not None:
-        root = tk.Toplevel(parent)
-        root.transient(parent)
-    else:
-        root = tk.Tk()
-    root.title("Wyniki – parcie czynne (Rankine i Poncelet)")
-    root.geometry("1024x1400")
-    root.configure(bg=BG)
-
-    families = tkfont.families()
-    for name in ("DejaVu Sans", "Liberation Sans", "Segoe UI", "Arial", "TkDefaultFont"):
-        if name in families:
-            font_n = (name, 10)
-            font_b = (name, 10, "bold")
-            break
-    else:
-        font_n, font_b = ("TkDefaultFont", 10), ("TkDefaultFont", 10, "bold")
-
-    def zamknij():
-        wybor[0] = "close"
-        root.destroy()
-
-    def zmien_parametry():
-        wybor[0] = "change"
-        root.destroy()
-
-    # Wyniki tekstowe u góry (w dwóch kolumnach)
-    top = tk.Frame(root, bg=BG, padx=12, pady=8)
-    top.pack(fill=tk.X)
-    left_t = tk.Frame(top, bg=BG)
-    left_t.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    tk.Label(left_t, text="Rankine", font=font_b, fg=FG, bg=BG).pack(anchor=tk.W)
-    r = wyniki["rankine"]
-    for key, val in [("E_a,d", r["E_a"]), ("E_ah,d", r["E_ah"]), ("E_av,d", r["E_av"]), ("z_c", r["z_c"])]:
-        tk.Label(left_t, text=f"  {key}: {val:.2f} kN/m" if "z_c" not in key else f"  {key}: {val:.2f} m", font=font_n, fg=FG, bg=BG, anchor=tk.W).pack(anchor=tk.W)
-    right_t = tk.Frame(top, bg=BG)
-    right_t.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    tk.Label(right_t, text="Poncelet (Coulomb)", font=font_b, fg=FG, bg=BG).pack(anchor=tk.W)
-    p = wyniki["poncelet"]
-    for key, val in [("E_a,d", p["E_a"]), ("E_ah,d", p["E_ah"]), ("E_av,d", p["E_av"]), ("z_c", p["z_c"])]:
-        tk.Label(right_t, text=f"  {key}: {val:.2f} kN/m" if "z_c" not in key else f"  {key}: {val:.2f} m", font=font_n, fg=FG, bg=BG, anchor=tk.W).pack(anchor=tk.W)
-
-    # Wykresy – mniejszy rozmiar do osadzenia
-    fig1.set_size_inches(6.0, 4.0)
-    fig2.set_size_inches(6.0, 4.0)
-    frame_plots = tk.Frame(root, bg=BG, padx=8, pady=8)
-    frame_plots.pack(fill=tk.BOTH, expand=True)
-    # Dwa wykresy jeden pod drugim
-    canvas1 = FigureCanvasTkAgg(fig1, master=frame_plots)
-    canvas1.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=(0, 4))
-    canvas2 = FigureCanvasTkAgg(fig2, master=frame_plots)
-    canvas2.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=(4, 0))
-    canvas1.draw()
-    canvas2.draw()
-
-    # PDF + przyciski
-    bot = tk.Frame(root, bg=BG, padx=12, pady=8)
-    bot.pack(fill=tk.X)
-    tk.Label(bot, text=f"PDF: {path1}", font=(font_n[0], 8), fg="#888", bg=BG, anchor=tk.W).pack(anchor=tk.W)
-    tk.Label(bot, text=f"     {path2}", font=(font_n[0], 8), fg="#888", bg=BG, anchor=tk.W).pack(anchor=tk.W)
-    btn_frame = tk.Frame(bot, bg=BG)
-    btn_frame.pack(pady=10)
-    tk.Button(btn_frame, text="Zmień parametry", font=font_b, relief=tk.FLAT, bg=BG_BTN_OK, fg=FG_BTN_OK,
-              command=zmien_parametry, cursor="hand2").pack(side=tk.LEFT, padx=6)
-    tk.Button(btn_frame, text="Zamknij", font=font_n, relief=tk.FLAT, bg=BG_BTN_CANCEL, fg=FG_BTN_CANCEL,
-              command=zamknij, cursor="hand2").pack(side=tk.LEFT, padx=6)
-
-    root.protocol("WM_DELETE_WINDOW", zamknij)
-    if parent is not None:
-        parent.wait_window(root)
-    else:
-        root.mainloop()
-    plt.close(fig1)
-    plt.close(fig2)
-    return wybor[0] if wybor[0] is not None else "close"
-
-
 def main():
-    os.chdir(KATALOG)
-    # Jedno okno główne (niewidoczne, 1×1 poza ekranem) – NIE withdraw, żeby Toplevele się pokazywały.
-    # Dane i wyniki = Toplevele tego samego roota, więc po „Zmień parametry” znowu widać formularz.
-    app = tk.Tk()
-    app.geometry("1x1+-4000+-4000")
-    app.attributes("-topmost", False)
-    try:
-        while True:
-            d = wczytaj_dane_z_okienka(parent=app)
-            if d is None:
-                break
-            p1, p2, wyniki, fig1, fig2 = oblicz_i_rysuj(d, return_figures=True)
-            wybor = pokaz_okno_wynikow_i_wykresow(wyniki, p1, p2, fig1, fig2, parent=app)
-            if wybor != "change":
-                break
-    except Exception as e:
-        messagebox.showerror("Błąd obliczeń", str(e))
-        raise
-    finally:
-        app.destroy()
+    """Prosty tryb CLI: wywołaj obliczenia z domyślnym zestawem parametrów i zapisz PDF."""
+    d = {
+        "q": 10.0,
+        "gamma": 18.0,
+        "phi_st": 30.0,
+        "epsilon_st": 0.0,
+        "gamma_Q": 1.0,
+        "gamma_G": 1.0,
+        "z_max": 5.0,
+        "beta_st": 10.0,
+        "delta_frac": 2,  # 2φ/3
+        "l_max": 5.0,
+    }
+    path1, path2, wyniki = oblicz_i_rysuj(d, return_figures=False)
+    print("Zapisano pliki PDF:", path1, "oraz", path2)
 
 
 if __name__ == "__main__":
