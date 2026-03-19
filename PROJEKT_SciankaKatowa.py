@@ -250,6 +250,7 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
         f"$E_{{ah,d}}$ = {E_ah:.2f} kN/m\n"
         f"$E_{{av,d}}$ = {E_av:.2f} kN/m\n"
         f"$z_c$ = {z_c:.2f} m (od góry)\n"
+        f"$h_{{z,d}}$ = {h_z_d:.2f} m\n"
         f"$K_a$ = {K_a_gamma:.3f}"
     )
     ax1.text(
@@ -625,6 +626,7 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
             "E_ah": E_ah,
             "E_av": E_av,
             "z_c": z_c,
+            "h_z": h_z_d,
             "K_a": K_a_gamma,
             "omega_epsilon_deg": omega_deg,
             "theta_deg": theta_deg,

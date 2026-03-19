@@ -16,9 +16,7 @@ def main():
         """
 **Autor:** jvk &nbsp; | &nbsp; **Licencja:** MIT &nbsp; | &nbsp; **Wsparcie:** ćwiczeń projektowych
 
-Funkcje napisane w Pythonie i `matplotlib` liczą parcie według założeń metody Rankine'a.
-Tutaj ściana oporowa jest pionowa, a mamy do czynienia z nachylonym naziomem (kąt `ε`).
-Powstaje wypadkowa nachylona pod tym samym kątem co naziom, dlatego wypadkowa ma składową poziomą i pionową.
+Funkcje napisane w Pythonie i `matplotlib` liczą parcie według założeń metody Rankine'a/Ponceleta.
         """
     )
 
@@ -159,6 +157,8 @@ Niech `β` oznacza odchylenie ściany od pionu (w kodzie `beta_st`), a `δ` – 
                 st.write(f"E_ah,d = {r['E_ah']:.2f} kN/m")
                 st.write(f"E_av,d = {r['E_av']:.2f} kN/m")
                 st.write(f"z_c = {r['z_c']:.2f} m (od góry)")
+                if "h_z" in r:
+                    st.write(f"h_z,d = {r['h_z']:.2f} m")
                 if "K_a" in r:
                     st.write(f"K_a = {r['K_a']:.3f}")
                 if "omega_epsilon_deg" in r:
