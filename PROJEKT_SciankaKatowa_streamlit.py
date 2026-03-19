@@ -135,7 +135,13 @@ Niech `β` oznacza odchylenie ściany od pionu (w kodzie `beta_st`), a `δ` – 
                 "l_max": float(l_max),
             }
 
-            path1, path2, wyniki, fig1, fig2 = oblicz_i_rysuj(d, return_figures=True, save_pdf=False)
+            try:
+                path1, path2, wyniki, fig1, fig2 = oblicz_i_rysuj(d, return_figures=True, save_pdf=False)
+            except TypeError as te:
+                # Zgodność wsteczna: starsza wersja funkcji może nie mieć argumentu `save_pdf`.
+                if "save_pdf" not in str(te):
+                    raise
+                path1, path2, wyniki, fig1, fig2 = oblicz_i_rysuj(d, return_figures=True)
 
             st.success("Obliczenia zakończone pomyślnie.")
 
