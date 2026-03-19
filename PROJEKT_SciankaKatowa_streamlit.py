@@ -163,8 +163,19 @@ Niech `β` oznacza odchylenie ściany od pionu (w kodzie `beta_st`), a `δ` – 
                 st.write(f"E_ah,d = {r['E_ah']:.2f} kN/m")
                 st.write(f"E_av,d = {r['E_av']:.2f} kN/m")
                 st.write(f"z_c = {r['z_c']:.2f} m (od góry)")
-                if "h_z" in r:
-                    st.write(f"h_z,d = {r['h_z']:.2f} m")
+                # Zgodność z różnymi wersjami modułu obliczeniowego:
+                # - nowsza zwraca `h_z` w wynikach,
+                # - starsza nie zwraca, więc liczymy lokalnie.
+                h_z_d = r.get("h_z")
+                if h_z_d is None:
+                    q_d_local = float(q) * float(gamma_Q)
+                    gamma_d_local = float(gamma) * float(gamma_G)
+                    eps_rad = np.deg2rad(float(epsilon))
+                    if abs(eps_rad) < 1e-6:
+                        h_z_d = q_d_local / gamma_d_local
+                    else:
+                        h_z_d = q_d_local / (gamma_d_local * np.cos(eps_rad))
+                st.write(f"h_z,d = {h_z_d:.2f} m")
                 if "K_a" in r:
                     st.write(f"K_a = {r['K_a']:.3f}")
                 if "omega_epsilon_deg" in r:
