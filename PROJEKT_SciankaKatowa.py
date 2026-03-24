@@ -280,11 +280,28 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
     # Do rysowania używamy przeskalowanej obwiedni naprężeń
     x_ea_p = x_wall_p + ea_p_plot_vis * np.cos(beta + delta)
     y_ea_p = y_wall_p - ea_p_plot_vis * np.sin(beta + delta)
+    # Zakres X: musi obejmować całą ścianę i obwiednię (przy β < 0 ściana idzie w −x).
+    # Wcześniej brano tylko max(x_ea_p) i prawą granicę xlim — przy ujemnym β
+    # geometria wypadała poza okno albo miała absurdalne proporcje („mikroskopijny” rysunek).
+    finite_x_wall_p = x_wall_p[np.isfinite(x_wall_p)]
     finite_x_ea_p = x_ea_p[np.isfinite(x_ea_p)]
-    if finite_x_ea_p.size == 0:
-        x_max_p = 1.0
+    if finite_x_wall_p.size == 0 and finite_x_ea_p.size == 0:
+        x_min_geom, x_max_geom = -1.0, 1.0
     else:
-        x_max_p = np.max(finite_x_ea_p) * 1.25
+        x_min_geom = float(np.min(np.concatenate([finite_x_wall_p, finite_x_ea_p])))
+        x_max_geom = float(np.max(np.concatenate([finite_x_wall_p, finite_x_ea_p])))
+    # Punkt (0,0) i typowy naziom zaczynają się od zera — utrzymujemy go w kadrze
+    x_min_geom = min(0.0, x_min_geom)
+    x_max_geom = max(0.0, x_max_geom)
+    x_span_geom = x_max_geom - x_min_geom
+    if x_span_geom < 1e-6:
+        x_span_geom = 1.0
+    pad_x = max(0.12 * x_span_geom, 0.45)
+    x_lim_left_p = x_min_geom - pad_x
+    x_lim_right_p = x_max_geom + pad_x
+    # Charakterystyczna „szerokość” wykresu do skalowania strzałek i etykiet (jak dawniej x_max_p)
+    x_char_p = max(x_lim_right_p - x_lim_left_p, 1.0)
+
     # Zakres y z zawartości rysunku – cały wykres widoczny (góra nie ucięta)
     y_min_content = min(0.0, np.min(y_wall_p), np.min(y_ea_p))
     y_max_content = max(np.max(y_wall_p), np.max(y_ea_p))
@@ -294,16 +311,15 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
 
     fig2, ax2 = plt.subplots(figsize=(9, 7))
     ax2.set_position([0.08, 0.04, 0.88, 0.90])
-    # mniejszy margines z lewej strony
-    ax2.set_xlim(-x_max_p * 0.4, x_max_p)
+    ax2.set_xlim(x_lim_left_p, x_lim_right_p)
     ax2.set_ylim(y_lo_p, y_hi_p)
     ax2.set_xlabel("")  # brak opisu osi poziomej
     ax2.set_ylabel("głębokość rzutu l·cos(β) [m]")
     ax2.set_title("Parcie czynne Ponceleta (Coulomb)")
     ax2.set_aspect("equal")
 
-    # Naziom (ε) dla Ponceleta – po stronie parcia
-    ground_len_p = x_max_p * 0.5
+    # Naziom (ε) dla Ponceleta – po stronie parcia (ułamek szerokości kadru)
+    ground_len_p = max(2.0, 0.45 * (x_lim_right_p - x_lim_left_p))
     x_ground_p = np.array([0.0, ground_len_p])
     y_ground_p = np.array([0.0, -np.tan(epsilon) * ground_len_p])
     ax2.plot(x_ground_p, y_ground_p, color="saddlebrown", lw=2)
@@ -352,7 +368,7 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
     n_arrows_p = 8
     xs_ar_p = np.linspace(0.05 * ground_len_p, 0.95 * ground_len_p, n_arrows_p)
     ys_ar_p = -np.tan(epsilon) * xs_ar_p
-    scale_q_p = VIS_SCALE * 0.25 * x_max_p * (q_d / max(E_ah_poncelet, 1e-6))
+    scale_q_p = VIS_SCALE * 0.25 * x_char_p * (q_d / max(E_ah_poncelet, 1e-6))
     if scale_q_p > 1e-8:
         for xa, ya in zip(xs_ar_p, ys_ar_p):
             # strzałka od punktu powyżej naziomu w dół do naziomu (grot na naziomie)
@@ -391,7 +407,7 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
 
     # Wartość efektywnego obciążenia q_eff na dodatkowej linii
     ax2.text(
-        x_ground2_p[1] + 0.05 * x_max_p,
+        x_ground2_p[1] + 0.05 * x_char_p,
         y_ground2_p[1],
         f"q' = {q_eff:.2f} kN/m²",
         fontsize=8,
@@ -407,7 +423,7 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
     y_p_top = y_ea_p[0]
     x_p_bot = x_ea_p[-1]
     y_p_bot = y_ea_p[-1]
-    dx_p = 0.03 * x_max_p
+    dx_p = 0.03 * x_char_p
     ax2.text(
         x_p_top + dx_p,
         y_p_top - 0.2,
@@ -569,7 +585,7 @@ def oblicz_i_rysuj(d, return_figures=False, save_pdf=True):
     )
 
     # Ta sama skala dla E_ah i E_av (jeśli trzeba skrócić, skracamy OBA wektory, żeby zachować proporcje)
-    scale_E_p = VIS_SCALE * 0.25 * x_max_p / E_ah_poncelet
+    scale_E_p = VIS_SCALE * 0.25 * x_char_p / E_ah_poncelet
     full_len_h = E_ah_poncelet * scale_E_p
     full_len_v = E_av_poncelet * scale_E_p
 
